@@ -20,7 +20,7 @@ poetry install --no-dev
 poetry run python3 download.py
 ```
 
-By default, the CTs and the segmentations will be downloaded as NIfTIs and resampled to 5mm thickness. If this is not desired, please read the section [Command Line Parameters](#command-line-parameters).
+By default, the CTs and the segmentations will be downloaded as NIfTIs and resampled to 5mm thickness. If this is not desired, please read the section [Command Line Parameters](#command-line-parameters). In the DICOMs, the slices that have not been annotated have been set to zero (background), but for training a CNN they should be set to an ignore label to ensure that the CNN does not learn them as background. The ignore label can be set with the parameter `--set-ignore` (default: None, i.e., will remain zero) and will result in NIfTIs files with the chosen label for the not annotated slices.
 
 Please note that not all collections are freely available for download. Most collections can be accessed by [creating an account on TCIA](https://wiki.cancerimagingarchive.net/pages/viewpage.action?pageId=23691309). For the following collections you will need to separately ask for access by filling [TCIA Restricted License Agreement](https://wiki.cancerimagingarchive.net/download/attachments/4556915/TCIA%20Restricted%20License%2020220519.pdf?version=1&modificationDate=1652964581655&api=v2) and by sending it to [help@cancerimagingarchive.net](mailto:help@cancerimagingarchive.net):
 * [Head-Neck Cetuximab](https://wiki.cancerimagingarchive.net/display/Public/Head-Neck+Cetuximab)
@@ -32,6 +32,7 @@ Please note that not all collections are freely available for download. Most col
 
 ### Command Line Parameters
 * `--info-csv`: The path to the CSV file containing the information about the collections to download, this file can be downloaded from our TCIA collection. If not present, the current directory and the filename `info.csv` will be used.
+* `--set-ignore`:
 * `--target-dir`: The directory where the CTs and the segmentations should be stored.
 * `--save-original-image`: If present, the original CT (not resampled) will be saved in the target directory with the name `image_original.nii.gz`.
 * `--save-meta-dicoms`: If present, the first and the last DICOM files containing DICOM meta data will be stored.

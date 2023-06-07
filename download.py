@@ -10,9 +10,12 @@ import signal
 import tempfile
 import traceback
 import zipfile
-from typing import Hashable, Tuple
+from typing import Hashable, Optional, Tuple
 
+import numpy as np
 import pandas as pd
+import pydicom
+import pydicom_seg
 import requests
 import SimpleITK as sitk
 from tqdm import tqdm
@@ -21,16 +24,27 @@ NBIA_API_URL = "https://services.cancerimagingarchive.net/nbia-api/services/v2"
 NBIA_LOGIN_URL = "https://services.cancerimagingarchive.net/nbia-api/oauth/token"
 
 
+def _set_ignore_label(seg: sitk.Image, label: int) -> sitk.Image:
+    arr = sitk.GetArrayFromImage(seg)
+    arr[np.nonzero(np.all(arr == 0, axis=1))] = label
+
+    ignore_seg = sitk.GetImageFromArray(arr)
+    ignore_seg.CopyInformation(seg)
+    return ignore_seg
+
+
 def handle_case(
     pbar: tqdm,
     working_dir: pathlib.Path,
-    data_dir: pathlib.Path,
     target_dir: pathlib.Path,
     series_instance_uid: str,
+    regions_series_instance_uid: str,
+    parts_series_instance_uid: str,
     authentication_token: str,
     save_original_image: bool = True,
     save_meta_dicoms: bool = True,
     save_dicoms: bool = True,
+    set_ignore: Optional[int] = None,
     force: bool = False,
 ) -> None:
     if (
@@ -48,13 +62,20 @@ def handle_case(
     ):
         return
     target_dir.mkdir(parents=True, exist_ok=True)
+    working_dir.mkdir(parents=True, exist_ok=True)
 
-    _download_series(
-        working_dir / "series.zip", series_instance_uid, authentication_token
-    )
+    downloads = [
+        ("image", series_instance_uid),
+        ("body-regions", regions_series_instance_uid),
+        ("body-parts", parts_series_instance_uid),
+    ]
+    for name, sid in downloads:
+        _download_series(working_dir / f"{name}.zip", sid, authentication_token)
     pbar.update()
-    _extract_series(working_dir, working_dir / "series.zip")
+    for name, _ in downloads:
+        _extract_series(working_dir, working_dir / f"{name}.zip")
     pbar.update()
+
     image = _load_series(
         target_dir=target_dir,
         dicom_dir=working_dir,
@@ -63,14 +84,48 @@ def handle_case(
         save_meta_dicoms=save_meta_dicoms,
         save_dicoms=save_dicoms,
     )
-    pbar.update()
-    image = _resample_image_to_thickness(image, 5.0)
-    pbar.update()
+    image = _resample_image_to_thickness(image, thickness=5)
+    body_regions = _load_segmentation(
+        target_dir,
+        working_dir / "body-regions.dcm",
+        save_original_image,
+        save_meta_dicoms,
+        save_dicoms,
+    )
+    body_parts = _load_segmentation(
+        target_dir,
+        working_dir / "body-parts.dcm",
+        save_original_image,
+        save_meta_dicoms,
+        save_dicoms,
+    )
 
-    # TODO: Add logic to download segmentations once they are available
-    # TODO: Add ignore label for empty slices option
+    body_regions = sitk.Resample(
+        body_regions, image, sitk.Transform(), sitk.sitkNearestNeighbor
+    )
+
+    body_parts = sitk.Resample(
+        body_parts, image, sitk.Transform(), sitk.sitkNearestNeighbor
+    )
+
+    for seg in [body_regions, body_parts]:
+        assert seg.GetSize() == image.GetSize(), (
+            f"{target_dir.name}: Unexpected shape after resampling - "
+            f"{seg.GetSize()} vs {image.GetSize()}"
+        )
+        assert np.isclose(seg.GetSpacing(), image.GetSpacing()).all(), (
+            f"{target_dir.name}: Image and segmentation do not have the same spacing -"
+            f"{seg.GetSpacing()} vs. {image.GetSpacing()}"  # type: ignore
+        )
+
+    if set_ignore is not None:
+        body_regions = _set_ignore_label(body_regions, set_ignore)
+        body_parts = _set_ignore_label(body_parts, set_ignore)
 
     sitk.WriteImage(image, str(target_dir / "image.nii.gz"), True)
+    sitk.WriteImage(body_regions, str(target_dir / "body-regions.nii.gz"), True)
+    sitk.WriteImage(body_parts, str(target_dir / "body-parts.nii.gz"), True)
+
     pbar.update()
 
 
@@ -121,10 +176,35 @@ def _load_series(
                     shutil.copy2(path, target_dir / "meta_first.dcm")
                 elif idx == len(dcm_files) - 1:
                     shutil.copy2(path, target_dir / "meta_last.dcm")
-            path.rename(target_dir / "dicom" / path.name)
+            shutil.move(path, target_dir / "dicom" / path.name)
     elif save_meta_dicoms:
-        pathlib.Path(dcm_files[0]).rename(target_dir / "meta_first.dcm")
-        pathlib.Path(dcm_files[-1]).rename(target_dir / "meta_last.dcm")
+        shutil.move(dcm_files[0], target_dir / "meta_first.dcm")
+        shutil.move(dcm_files[-1], target_dir / "meta_last.dcm")
+    return image
+
+
+def _load_segmentation(
+    target_dir: pathlib.Path,
+    dicom_file: pathlib.Path,
+    save_original_image: bool,
+    save_meta_dicoms: bool,
+    save_dicoms: bool,
+) -> sitk.Image:
+    dcm = pydicom.dcmread(dicom_file)
+    segmentation_name = dicom_file.name.replace(".dcm", "")
+    reader = pydicom_seg.MultiClassReader()
+    result = reader.read(dcm)
+    image = result.image
+    if save_original_image:
+        sitk.WriteImage(
+            image, str(target_dir / f"{segmentation_name}_original.nii.gz"), True
+        )
+    if save_meta_dicoms:
+        shutil.copy2(dicom_file, target_dir / f"{segmentation_name}_meta_first.dcm")
+    if save_dicoms:
+        (target_dir / "dicom").mkdir(parents=True, exist_ok=True)
+        shutil.move(dicom_file, target_dir / "dicom" / dicom_file.name)
+
     return image
 
 
@@ -168,13 +248,15 @@ def _worker(
         try:
             handle_case(
                 pbar,
-                pathlib.Path(working_dir),
-                args.data_dir / row.id,
-                (args.target_dir or args.data_dir) / row.id,
-                row.tcia_series_instance_uid,
+                working_dir=pathlib.Path(working_dir) / row.id,
+                target_dir=args.target_dir / row.id,
+                series_instance_uid=row.tcia_series_instance_uid,
+                regions_series_instance_uid=row.regions_series_instance_uid,
+                parts_series_instance_uid=row.parts_series_instance_uid,
                 save_original_image=args.save_original_image,
                 save_meta_dicoms=args.save_meta_dicoms,
                 save_dicoms=args.save_dicoms,
+                set_ignore=args.set_ignore,
                 force=args.force_download,
                 authentication_token=shared_authentication_token.value.decode(),  # type: ignore
             )
@@ -248,6 +330,12 @@ if __name__ == "__main__":
         "Defaults to data.",
     )
     parser.add_argument(
+        "--set-ignore",
+        default=None,
+        type=int,
+        help="Set all the non-segmented slices to the desired value in the segmentation mask.",
+    )
+    parser.add_argument(
         "--save-original-image",
         default=False,
         action="store_true",
@@ -275,7 +363,7 @@ if __name__ == "__main__":
         "--no-login",
         default=False,
         action="store_true",
-        help="Download only publically available cases",
+        help="Download only publicly available cases",
     )
     parser.add_argument(
         "--parallel-downloads",
@@ -311,7 +399,7 @@ if __name__ == "__main__":
     shared_authentication_token = mp.Array("c", authentication_token.encode())
     authentication_timestamp = datetime.datetime.now()
 
-    info_df = pd.read_csv(args.data_dir / "info.csv")
+    info_df = pd.read_csv(args.info_csv)
 
     stop_event = mp.Event()
     tqdm.set_lock(mp.RLock())
