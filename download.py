@@ -26,7 +26,7 @@ NBIA_LOGIN_URL = "https://services.cancerimagingarchive.net/nbia-api/oauth/token
 
 def _set_ignore_label(seg: sitk.Image, label: int) -> sitk.Image:
     arr = sitk.GetArrayFromImage(seg)
-    arr[np.nonzero(np.all(arr == 0, axis=1))] = label
+    arr[np.sum(arr, axis=(-1, -2)) == 0] = label
 
     ignore_seg = sitk.GetImageFromArray(arr)
     ignore_seg.CopyInformation(seg)
