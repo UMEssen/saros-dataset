@@ -6,7 +6,7 @@ authors = ["Sven Koitka <sven.koitka@uk-essen.de>", "Giulia Baldini <giulia.bald
 
 [tool.poetry.dependencies]
 python = "^3.9"
-pandas = "^1.4.1"
+pandas = "^2.0.0"
 requests = "^2.27.1"
 SimpleITK = "^2.1.1"
 tqdm = "^4.63.0"
@@ -16,8 +16,8 @@ pydicom = "^2.3.1"
 [tool.poetry.dev-dependencies]
 pre-commit = "^2.14.0"
 flake8 = "3.9.2"
-mypy = "0.950"
-black = "22.3.0"
+mypy = "^0.950"
+black = "^22.3.0"
 types-requests = "^2.27.27"
 
 [build-system]
