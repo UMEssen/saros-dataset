@@ -7,7 +7,7 @@ authors = ["Sven Koitka <sven.koitka@uk-essen.de>", "Giulia Baldini <giulia.bald
 [tool.poetry.dependencies]
 python = "^3.9"
 pandas = "^1.4.1"
-requests = "^2.27.1"
+requests = "^2.31.0"
 SimpleITK = "^2.1.1"
 tqdm = "^4.63.0"
 
