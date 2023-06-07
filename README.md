@@ -32,7 +32,7 @@ Please note that not all collections are freely available for download. Most col
 
 ### Command Line Parameters
 * `--info-csv`: The path to the CSV file containing the information about the collections to download, this file can be downloaded from our TCIA collection. If not present, the current directory and the filename `info.csv` will be used.
-* `--set-ignore`:
+* `--set-ignore`: In the DICOMs the non segmented slices have been set to zero. To set them to an ignore label, please provide the label with this argument (default: None, i.e., will remain zero).
 * `--target-dir`: The directory where the CTs and the segmentations should be stored.
 * `--save-original-image`: If present, the original CT (not resampled) will be saved in the target directory with the name `image_original.nii.gz`.
 * `--save-meta-dicoms`: If present, the first and the last DICOM files containing DICOM meta data will be stored.
