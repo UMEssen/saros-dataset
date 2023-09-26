@@ -9,8 +9,9 @@ import shutil
 import signal
 import tempfile
 import traceback
+import warnings
 import zipfile
-from typing import Hashable, Optional, Tuple
+from typing import Hashable, Tuple
 
 import numpy as np
 import pandas as pd
@@ -38,13 +39,10 @@ def handle_case(
     working_dir: pathlib.Path,
     target_dir: pathlib.Path,
     series_instance_uid: str,
-    regions_series_instance_uid: str,
-    parts_series_instance_uid: str,
     authentication_token: str,
     save_original_image: bool = True,
     save_meta_dicoms: bool = True,
     save_dicoms: bool = True,
-    set_ignore: Optional[int] = None,
     force: bool = False,
 ) -> None:
     if (
@@ -64,18 +62,12 @@ def handle_case(
     target_dir.mkdir(parents=True, exist_ok=True)
     working_dir.mkdir(parents=True, exist_ok=True)
 
-    downloads = [
-        ("image", series_instance_uid),
-        ("body-regions", regions_series_instance_uid),
-        ("body-parts", parts_series_instance_uid),
-    ]
-    for name, sid in downloads:
-        _download_series(working_dir / f"{name}.zip", sid, authentication_token)
+    _download_series(
+        working_dir / "series.zip", series_instance_uid, authentication_token
+    )
     pbar.update()
-    for name, _ in downloads:
-        _extract_series(working_dir, working_dir / f"{name}.zip")
+    _extract_series(working_dir, working_dir / "series.zip")
     pbar.update()
-
     image = _load_series(
         target_dir=target_dir,
         dicom_dir=working_dir,
@@ -84,48 +76,21 @@ def handle_case(
         save_meta_dicoms=save_meta_dicoms,
         save_dicoms=save_dicoms,
     )
-    image = _resample_image_to_thickness(image, thickness=5)
-    body_regions = _load_segmentation(
-        target_dir,
-        working_dir / "body-regions.dcm",
-        save_original_image,
-        save_meta_dicoms,
-        save_dicoms,
-    )
-    body_parts = _load_segmentation(
-        target_dir,
-        working_dir / "body-parts.dcm",
-        save_original_image,
-        save_meta_dicoms,
-        save_dicoms,
-    )
+    pbar.update()
+    image = _resample_image_to_thickness(image, 5.0)
+    pbar.update()
 
-    body_regions = sitk.Resample(
-        body_regions, image, sitk.Transform(), sitk.sitkNearestNeighbor
-    )
-
-    body_parts = sitk.Resample(
-        body_parts, image, sitk.Transform(), sitk.sitkNearestNeighbor
-    )
-
-    for seg in [body_regions, body_parts]:
-        assert seg.GetSize() == image.GetSize(), (
-            f"{target_dir.name}: Unexpected shape after resampling - "
-            f"{seg.GetSize()} vs {image.GetSize()}"
-        )
-        assert np.isclose(seg.GetSpacing(), image.GetSpacing()).all(), (
-            f"{target_dir.name}: Image and segmentation do not have the same spacing -"
-            f"{seg.GetSpacing()} vs. {image.GetSpacing()}"  # type: ignore
-        )
-
-    if set_ignore is not None:
-        body_regions = _set_ignore_label(body_regions, set_ignore)
-        body_parts = _set_ignore_label(body_parts, set_ignore)
+    if (target_dir / "body-regions.nii.gz").exists():
+        reader = sitk.ImageFileReader()
+        reader.SetFileName(str(target_dir / "body-regions.nii.gz"))
+        reader.ReadImageInformation()
+        if reader.GetSize() != image.GetSize():
+            raise ValueError(
+                f"{target_dir.name}: Unexpected shape after resampling - "
+                f"{reader.GetSize()} vs {image.GetSize()}"
+            )
 
     sitk.WriteImage(image, str(target_dir / "image.nii.gz"), True)
-    sitk.WriteImage(body_regions, str(target_dir / "body-regions.nii.gz"), True)
-    sitk.WriteImage(body_parts, str(target_dir / "body-parts.nii.gz"), True)
-
     pbar.update()
 
 
@@ -251,12 +216,9 @@ def _worker(
                 working_dir=pathlib.Path(working_dir) / row.id,
                 target_dir=args.target_dir / row.id,
                 series_instance_uid=row.tcia_series_instance_uid,
-                regions_series_instance_uid=row.regions_series_instance_uid,
-                parts_series_instance_uid=row.parts_series_instance_uid,
                 save_original_image=args.save_original_image,
                 save_meta_dicoms=args.save_meta_dicoms,
                 save_dicoms=args.save_dicoms,
-                set_ignore=args.set_ignore,
                 force=args.force_download,
                 authentication_token=shared_authentication_token.value.decode(),  # type: ignore
             )
@@ -278,14 +240,13 @@ def _worker_init(
 
 
 def get_authentication_token(username: str, password: str) -> Tuple[str, str, int]:
-    response = requests.get(
+    response = requests.post(
         NBIA_LOGIN_URL,
-        params={
+        data={
             "username": username,
             "password": password,
+            "client_id": "NBIA",
             "grant_type": "password",
-            "client_id": "nbiaRestAPIClient",
-            "client_secret": "ItsBetweenUAndMe",
         },
     )
     response.raise_for_status()
@@ -318,7 +279,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--info-csv",
-        default=pathlib.Path("info.csv"),
+        default=pathlib.Path("Segmentation Info.csv"),
         type=pathlib.Path,
         help="Path to the file with the information about the cases.",
     )
@@ -328,12 +289,6 @@ if __name__ == "__main__":
         type=pathlib.Path,
         help="Directory path where the downloaded files should be stored. "
         "Defaults to data.",
-    )
-    parser.add_argument(
-        "--set-ignore",
-        default=None,
-        type=int,
-        help="Set all the non-segmented slices to the desired value in the segmentation mask.",
     )
     parser.add_argument(
         "--save-original-image",
@@ -398,6 +353,18 @@ if __name__ == "__main__":
     )
     shared_authentication_token = mp.Array("c", authentication_token.encode())
     authentication_timestamp = datetime.datetime.now()
+
+    n_regions = len(list(args.target_dir.rglob("body-regions.nii.gz")))
+    n_parts = len(list(args.target_dir.rglob("body-parts.nii.gz")))
+
+    if n_regions != 900 or n_parts != 900:
+        warnings.warn(
+            f"{n_regions} body regions and {n_parts} body parts segmentations were found in the "
+            f"directory {args.target_dir}. There are supposed to be 900 of each. "
+            f"Please consider using the same directory as the segmentations you downloaded "
+            f"to ensure that the checks are run and that the segmentations are compatible with the "
+            f"downloaded images."
+        )
 
     info_df = pd.read_csv(args.info_csv)
 
