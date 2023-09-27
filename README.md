@@ -1,6 +1,12 @@
 # SAROS Dataset
 
-*Sparsely Annotated Regions and Organs Segmentation* (SAROS)
+<!-- PROJECT LOGO -->
+<br />
+<div align="center">
+  <a href="https://github.com/UMEssen/FHIR-PYrate">
+    <img src="https://raw.githubusercontent.com/UMEssen/saros-dataset/main/logo.png" alt="Logo" width="600">
+  </a>
+</div>
 
 ## Download
 
