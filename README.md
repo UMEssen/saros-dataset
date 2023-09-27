@@ -3,8 +3,8 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  <a href="https://github.com/UMEssen/FHIR-PYrate">
-    <img src="https://raw.githubusercontent.com/UMEssen/saros-dataset/main/logo.png" alt="Logo" width="600">
+  <a href="https://github.com/UMEssen/saros-dataset">
+    <img src="https://github.com/UMEssen/saros-dataset/blob/main/logo.png" alt="Logo" width="600">
   </a>
 </div>
 
