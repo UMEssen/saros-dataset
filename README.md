@@ -54,3 +54,15 @@ Please note that not all collections are freely available for download. Most col
 
 ## Notes
 There are three CTs (`case_609`, `case_623`, `case_816`) that have abnormal CT values (e.g. -3000 HU). Be sure to take this into account when training your CNN models.
+
+## Citation
+
+If you use this dataset, please cite:
+
+```
+Koitka, S., Baldini, G., Kroll, L., van Landeghem, N., Haubold, J., Sung Kim, M., Kleesiek, J., Nensa, F., & Hosch, R. (2023). SAROS - A large, heterogeneous, and sparsely annotated segmentation dataset on CT imaging data (SAROS) (Version 1) [Data set]. The Cancer Imaging Archive. https://doi.org/10.25737/SZ96-ZG60
+```
+
+```
+Clark, K., Vendt, B., Smith, K., Freymann, J., Kirby, J., Koppel, P., Moore, S., Phillips, S., Maffitt, D., Pringle, M., Tarbox, L., & Prior, F. (2013). The Cancer Imaging Archive (TCIA): Maintaining and Operating a Public Information Repository. In Journal of Digital Imaging (Vol. 26, Issue 6, pp. 1045–1057). Springer Science and Business Media LLC. https://doi.org/10.1007/s10278-013-9622-7
+```
