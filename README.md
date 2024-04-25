@@ -6,7 +6,7 @@
   </a>
 </div>
 
-## Download
+# Download
 
 1. Install the package manager [poetry](https://python-poetry.org/docs/#installation)
 
@@ -55,7 +55,47 @@ Please note that not all collections are freely available for download. Most col
 ## Notes
 There are three CTs (`case_609`, `case_623`, `case_816`) that have abnormal CT values (e.g. -3000 HU). Be sure to take this into account when training your CNN models.
 
-## Citation
+# Training
+As an example of how to use our dataset, we have trained and evaluated two 2D [nnUNet](https://github.com/MIC-DKFZ/nnUNet) models for the body regions and the body parts.
+
+1. Download the data as described above. You should now have a directory that contains all cases and that looks as follows:
+```
+data/
+├── case_000/
+│   ├── image.nii.gz
+│   ├── body-regions.nii.gz
+│   ├── body-parts.nii.gz
+├── case_001/
+├── ...
+```
+2. Clone this repository and install the dependencies
+```bash
+git clone git@github.com:UMEssen/saros-dataset.git
+cd saros-dataset
+poetry install --no-root
+poetry shell # Activate the virtual environment
+```
+3. Clone nnUNet and install the dependencies
+```bash
+git clone git@github.com:MIC-DKFZ/nnUNet.git
+cd nnUNet
+pip install . # Make sure you are in the poetry environment for this
+```
+4. Run the `[move_data.py](training/move_data.py) script to move the data to the nnUNet format.
+```bash
+cd ..
+python training/move_data.py --source-root data --target-root . --dataset regions --info-csv Segmentation-Info_09-29-2023.csv
+python training/move_data.py --source-root data --target-root . --dataset parts --info-csv Segmentation-Info_09-29-2023.csv
+```
+5. Train the models
+```bash
+bash training/train_parts_2d.sh
+bash training/train_regions_2d.sh
+```
+6. Compute the predictions
+7. Run the evaluation
+
+# Citation
 
 If you use this dataset, please cite:
 
