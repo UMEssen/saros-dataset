@@ -80,24 +80,29 @@ poetry shell # Activate the virtual environment
 git clone git@github.com:MIC-DKFZ/nnUNet.git
 cd nnUNet
 pip install . # Make sure you are in the poetry environment
+cd ..
 ```
 4. Run the `[move_data.py](training/move_data.py) script to move the data to the nnUNet format.
 ```bash
-cd ..
 python training/move_data.py --source-root data --target-root . --dataset regions --info-csv Segmentation-Info_09-29-2023.csv
 python training/move_data.py --source-root data --target-root . --dataset parts --info-csv Segmentation-Info_09-29-2023.csv
 ```
 5. Train the models.
 ```bash
-bash training/train_parts_2d.sh
-bash training/train_regions_2d.sh
+bash training/train_parts.sh
+bash training/train_regions.sh
 ```
-6. Compute the predictions.
-7. Install the surface-distance package and run the evaluation.
+6. Install the surface-distance package.
 ```bash
 git clone git@github.com:google-deepmind/surface-distance.git
 cd surface-distance
-pip install .
+pip install . # Make sure you are in the poetry environment
+cd ..
+```
+7. Predict and evaluate the models.
+```bash
+bash training/predict_evaluate_parts.sh
+bash training/predict_evaluate_regions.sh
 ```
 
 # Citation
