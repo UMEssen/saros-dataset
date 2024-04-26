@@ -82,7 +82,7 @@ cd nnUNet
 pip install . # Make sure you are in the poetry environment
 cd ..
 ```
-4. Run the `[move_data.py](training/move_data.py) script to move the data to the nnUNet format.
+4. Run the [move_data.py](training/move_data.py) script to move the data to the nnUNet format.
 ```bash
 python training/move_data.py --source-root data --target-root . --dataset regions --info-csv Segmentation-Info_09-29-2023.csv
 python training/move_data.py --source-root data --target-root . --dataset parts --info-csv Segmentation-Info_09-29-2023.csv
