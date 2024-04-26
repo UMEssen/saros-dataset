@@ -4,7 +4,6 @@ export nnUNet_preprocessed="nnUNet_training/nnUNet_preprocessed"
 export nnUNet_predictions="nnUNet_training/nnUNet_predictions"
 
 GPU_ID=0 # Put the GPU IDs here
-
 DATASET=558
 TRAINER=nnUNetTrainerNoMirroring
 
