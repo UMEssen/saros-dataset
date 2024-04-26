@@ -99,7 +99,7 @@ cd surface-distance
 pip install . # Make sure you are in the poetry environment
 cd ..
 ```
-7. Predict and evaluate the models.
+7. Compute the predictions and evaluate the models.
 ```bash
 bash training/predict_evaluate_parts.sh
 bash training/predict_evaluate_regions.sh
