@@ -13,6 +13,7 @@ tqdm = "^4.63.0"
 pydicom-seg = "^0.4.1"
 pydicom = "^2.3.1"
 p-tqdm = "^1.4.0"
+openpyxl = "^3.1.2"
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^2.14.0"
