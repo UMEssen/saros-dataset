@@ -1,6 +1,7 @@
 import argparse
 import json
 from pathlib import Path
+from shutil import copy2
 from typing import Dict, List
 
 import nibabel as nib
@@ -36,6 +37,8 @@ def generate_dataset(
     nnunet_folder = target_root / "nnUNet_training"
     target_dir = nnunet_folder / "nnUNet_raw" / task_name
     preprocessed_dir = nnunet_folder / "nnUNet_preprocessed" / task_name
+    # Also create a directory where we can store only the images and labels of the dataset for later evaluation
+    eval_dir = nnunet_folder / "nnUNet_eval" / task_name
     preprocessed_dir.mkdir(exist_ok=True, parents=True)
 
     num_training_cases = 0
@@ -43,15 +46,22 @@ def generate_dataset(
     for _ in range(5):
         splits.append({"train": [], "val": []})
     for row in tqdm(info_df.itertuples(), total=len(info_df)):
+        old_img = source_root / row.id / "image.nii.gz"
+        old_label = source_root / row.id / filename
+
         if row.split in {"fold-1", "fold-2", "fold-3", "fold-4", "fold-5"}:
             split = "Tr"
         elif row.split == "test":
             split = "Ts"
+            # Copy the entire image and entire label such that we can use them for evaluation later
+            eval_dir_img = eval_dir / "imagesTs"
+            eval_dir_label = eval_dir / "labelsTs"
+            eval_dir_img.mkdir(exist_ok=True, parents=True)
+            eval_dir_label.mkdir(exist_ok=True, parents=True)
+            copy2(old_img, eval_dir_img / f"{row.id}_0000.nii.gz")
+            copy2(old_label, eval_dir_label / f"{row.id}.nii.gz")
         else:
             raise ValueError(row.split)
-
-        old_img = source_root / row.id / "image.nii.gz"
-        old_label = source_root / row.id / filename
 
         img_nib = load_nibabel_image_with_axcodes(nib.load(old_img))
         img = img_nib.get_fdata()
