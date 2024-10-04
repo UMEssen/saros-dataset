@@ -1,10 +1,5 @@
 <!-- PROJECT LOGO -->
-<br />
-<div align="center">
-  <a href="https://github.com/UMEssen/saros-dataset">
-    <img src="https://github.com/UMEssen/saros-dataset/blob/main/logo.png" alt="Logo" width="600">
-  </a>
-</div>
+![SAROS-Banner](SAROS-banner.png)
 
 # Download
 
