@@ -1,6 +1,8 @@
 <!-- PROJECT LOGO -->
 ![SAROS-Banner](SAROS-banner.png)
 
+[![Affiliated with RTG WisPerMed](https://img.shields.io/badge/Affiliated-RTG%202535%20WisPerMed-blue)](https://wispermed.org/)
+
 # Download
 
 1. Install the package manager [poetry](https://python-poetry.org/docs/#installation)
