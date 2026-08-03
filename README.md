@@ -1,5 +1,5 @@
 <!-- PROJECT LOGO -->
-![SAROS-Banner](SAROS-banner.png)
+![SAROS-Banner](SAROS.png)
 
 [![Affiliated with RTG WisPerMed](https://img.shields.io/badge/Affiliated-RTG%202535%20WisPerMed-blue)](https://wispermed.org/)
 
